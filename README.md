@@ -56,7 +56,8 @@ The image contains only the app. Mount configs, videos, prompts, and a ratings
 directory at runtime. Paths in the YAML must resolve **inside the container**
 (a bundle from `export_human_rating_bundle.py` already uses relative paths).
 
-Behind an HTTP proxy, pass the host proxy env vars as build args (needed for `pip`):
+Pass host proxy env vars as build args so `pip` can reach PyPI (omit the
+`--build-arg` lines if you have a direct network):
 
 ```bash
 docker build -t surgworldbench-rater-ui . \
@@ -66,10 +67,6 @@ docker build -t surgworldbench-rater-ui . \
   --build-arg http_proxy \
   --build-arg https_proxy \
   --build-arg no_proxy
-```
-
-```bash
-docker build -t surgworldbench-rater-ui .
 
 docker run --rm -p 8501:8501 \
   -v /path/to/bundle:/data \
