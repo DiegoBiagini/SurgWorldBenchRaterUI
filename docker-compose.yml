@@ -1,0 +1,14 @@
+services:
+  rater:
+    build: .
+    image: surgworldbench-rater-ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+    # Bundle layout: /data/configs/*.yaml with paths that resolve under /data
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      python run_human_rating.py
+      --configs /data/configs/*.yaml
+      --output-folder /data/ratings

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Local rating output (mount this separately in Docker)
+ratings/
+data/
+
+# Logs / OS
+*.log
+.DS_Store
