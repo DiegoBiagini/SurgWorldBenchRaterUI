@@ -1,13 +1,15 @@
 # Each entry is a separate labeling page at http://localhost:8501/<path>
+# Relative configs paths are resolved against this file's directory.
+# Generation YAMLs use absolute paths under /mnt/rater_filesystem.
 pages:
   - path: control
     title: Control
     configs:
-      - /path/to/bundle/configs/control_a.yaml
-      - /path/to/bundle/configs/control_b.yaml
-    output_folder: ./ratings/control
+      - gen_configs/control_cosmos_h_og_base.yaml
+      - gen_configs/control_cosmos3_super_refined_cosmos.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_control/human_rating
   - path: experimental
     title: Experimental
     configs:
-      - /path/to/bundle/configs/exp_*.yaml
-    output_folder: ./ratings/experimental
+      - gen_configs/exp_*.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_experimental/human_rating

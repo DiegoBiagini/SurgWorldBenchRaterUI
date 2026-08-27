@@ -4,9 +4,11 @@
 #   docker build -f Dockerfile.auth -t surgworldbench-rater-ui-auth .
 #   docker run --rm -p 8501:80 \
 #     -e RATER_PASSWORD=secret \
-#     -v /path/to/bundle:/data \
+#     -v /mnt/rater_filesystem:/mnt/rater_filesystem \
+#     -v "$PWD/harness_configs":/app/harness_configs \
+#     -v "$PWD/gen_configs":/app/harness_configs/gen_configs:ro \
 #     surgworldbench-rater-ui-auth \
-#     --pages-config /data/rater_pages.yaml
+#     --pages-config /app/harness_configs/base_config.yaml
 
 FROM python:3.11-slim
 
@@ -42,4 +44,4 @@ RUN chmod +x /app/docker/entrypoint-auth.sh
 EXPOSE 80
 
 ENTRYPOINT ["/app/docker/entrypoint-auth.sh"]
-CMD ["--pages-config", "/data/rater_pages.yaml"]
+CMD ["--pages-config", "/app/harness_configs/base_config.yaml"]

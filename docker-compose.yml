@@ -1,3 +1,9 @@
+# Host rater filesystem: RATER_FILESYSTEM (default /mnt/rater_filesystem)
+# is bind-mounted at /mnt/rater_filesystem in the container.
+#
+#   docker compose up --build
+#   RATER_FILESYSTEM=/path/on/host docker compose up --build
+
 services:
   rater:
     build:

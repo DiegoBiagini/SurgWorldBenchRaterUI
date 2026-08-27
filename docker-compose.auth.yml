@@ -1,4 +1,6 @@
 # HTTP Basic Auth in front of Streamlit. Requires RATER_PASSWORD in .env.
+# Optional RATER_FILESYSTEM (default /mnt/rater_filesystem) is the host path
+# bind-mounted at /mnt/rater_filesystem in the container.
 #
 #   docker compose -f docker-compose.auth.yml up --build
 #

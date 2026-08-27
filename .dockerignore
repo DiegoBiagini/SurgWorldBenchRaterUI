@@ -6,7 +6,6 @@ __pycache__
 *.pyc
 *.pyo
 ratings
-data
 .env
 .env.example
 *.md

@@ -11,9 +11,8 @@ env/
 # Streamlit
 .streamlit/secrets.toml
 
-# Local rating output (mount this separately in Docker)
+# Local rating output
 ratings/
-data/
 
 # Logs / OS
 *.log
