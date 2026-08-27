@@ -1,0 +1,35 @@
+# HTTP Basic Auth in front of Streamlit. Requires RATER_PASSWORD in .env.
+#
+#   docker compose -f docker-compose.auth.yml up --build
+#
+# Browser prompt: username RATER_USER (default rater), password RATER_PASSWORD.
+# Host port 8501 maps to nginx on 80; Streamlit is bound to localhost inside
+# the container so it is not reachable without the password.
+
+services:
+  rater:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+        no_proxy: ${no_proxy:-}
+    image: surgworldbench-rater-ui-auth
+    ports:
+      - "8501:80"
+    env_file:
+      - .env
+    environment:
+      RATER_USER: ${RATER_USER:-rater}
+      RATER_PASSWORD: ${RATER_PASSWORD:?Set RATER_PASSWORD in .env}
+    volumes:
+      - ${RATER_FILESYSTEM:-/mnt/rater_filesystem}:/mnt/rater_filesystem
+      - ./harness_configs:/app/harness_configs
+      - ./gen_configs:/app/harness_configs/gen_configs:ro
+    command:
+      - --pages-config
+      - /app/harness_configs/base_config.yaml

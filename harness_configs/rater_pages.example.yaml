@@ -1,0 +1,13 @@
+# Each entry is a separate labeling page at http://localhost:8501/<path>
+pages:
+  - path: control
+    title: Control
+    configs:
+      - /path/to/bundle/configs/control_a.yaml
+      - /path/to/bundle/configs/control_b.yaml
+    output_folder: ./ratings/control
+  - path: experimental
+    title: Experimental
+    configs:
+      - /path/to/bundle/configs/exp_*.yaml
+    output_folder: ./ratings/experimental

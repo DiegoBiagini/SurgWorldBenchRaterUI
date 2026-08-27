@@ -23,11 +23,13 @@ Each criterion is scored from **1 to 5**.
 
 # Login
 
-1. Open the labeling website.
+1. Open the labeling website and choose a rating set (or open its URL, e.g. `/control`).
 2. Enter a username.
-3. Start labeling.
+3. Optionally check **Show already labeled samples** if you need to review clips you already scored.
+4. Start labeling.
 
-You may resume labeling in a later session by entering the same username again.
+You may resume labeling in a later session by entering the same username again on that set.
+Each rating set has its own queue; use the same username on each set you work on.
 
 ---
 
@@ -39,6 +41,7 @@ For each video:
 - You may pause, rewind, and seek through the video.
 - The full instruction is shown in the lower-left corner.
 - Score the video according to the three criteria below.
+- Click **Save and next**, or press **Enter**, to store the scores and advance.
 
 ---
 

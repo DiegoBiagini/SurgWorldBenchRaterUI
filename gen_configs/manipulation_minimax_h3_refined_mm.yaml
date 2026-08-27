@@ -1,0 +1,12 @@
+model: "minimax-h3"
+folder_path: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_manipulation/manipulation_prompts_refined_mm"
+output_folder: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_manipulation/gen_videos_minimax_h3_refined_mm"
+device: "cuda:1"
+seed: 42
+timesteps: 35
+# crop_then_gen | pad_then_gen | resize — see harness/resolution_strategy.py
+resolution_strategy: "crop_then_gen"
+resolution: [480, 832]
+skip_existing: true
+num_frames: 141
+framerate: 24

@@ -4,18 +4,13 @@ run_human_rating.py — Blind Streamlit UI for rating generated control-prompt v
 Requires: pip install streamlit
 
 Usage:
-    python run_human_rating.py \\
-        --configs configs/benchmark/control_cosmos_h_og_base.yaml \\
-                  configs/benchmark/control_cosmos3_h_surgical_refined_cosmos.yaml \\
-        --output-folder /path/to/human_rating
-
-    python run_human_rating.py ... --include-rated
-        # also queue already-rated clips so they can be reviewed / edited
+    python run_human_rating.py --pages-config rater_pages.yaml
 """
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import os
 import random
 import sys
@@ -35,6 +30,7 @@ from harness.human_rating import (
     sanitize_rater_id,
     unrated_clips,
 )
+from harness.pages_config import RatingPage, load_pages_config
 
 # Placeholder copy — replace with the rating procedure for each criterion.
 RATING_HELP = {
@@ -57,20 +53,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Blind human rater for generated videos (Streamlit)"
     )
     parser.add_argument(
-        "--configs",
-        nargs="+",
+        "--pages-config",
         required=True,
-        help="Benchmark generation YAML files whose output_folder clips to rate",
-    )
-    parser.add_argument(
-        "--output-folder",
-        required=True,
-        help="Root folder for human ratings (per-config / per-rater JSON)",
-    )
-    parser.add_argument(
-        "--include-rated",
-        action="store_true",
-        help="Include already-rated clips in the queue so they can be reviewed or edited",
+        help="YAML listing rating-set pages (path, configs, output_folder)",
     )
     return parser.parse_args(argv)
 
@@ -112,11 +97,17 @@ def launch_streamlit() -> None:
     os.execv(sys.executable, cmd)
 
 
-def _score_widget_key(clip_id: str, score_key: str) -> str:
-    return f"score::{clip_id}::{score_key}"
+def _state_key(page_path: str, name: str) -> str:
+    return f"{name}::{page_path}"
 
 
-def _hydrate_score_widgets(clip: Clip, output_root: Path, rater_id: str) -> None:
+def _score_widget_key(page_path: str, clip_id: str, score_key: str) -> str:
+    return f"score::{page_path}::{clip_id}::{score_key}"
+
+
+def _hydrate_score_widgets(
+    page_path: str, clip: Clip, output_root: Path, rater_id: str
+) -> None:
     import streamlit as st
 
     path = rating_json_path(
@@ -125,17 +116,17 @@ def _hydrate_score_widgets(clip: Clip, output_root: Path, rater_id: str) -> None
     existing = load_rating(path)
     scores = (existing or {}).get("scores") or {}
     for key in SCORE_KEYS:
-        widget_key = _score_widget_key(clip.clip_id, key)
+        widget_key = _score_widget_key(page_path, clip.clip_id, key)
         if widget_key not in st.session_state and key in scores:
             st.session_state[widget_key] = int(scores[key])
 
 
-def _collect_scores(clip: Clip) -> dict[str, int] | None:
+def _collect_scores(page_path: str, clip: Clip) -> dict[str, int] | None:
     import streamlit as st
 
     scores: dict[str, int] = {}
     for key in SCORE_KEYS:
-        value = st.session_state.get(_score_widget_key(clip.clip_id, key))
+        value = st.session_state.get(_score_widget_key(page_path, clip.clip_id, key))
         if value is None:
             return None
         scores[key] = int(value)
@@ -143,6 +134,7 @@ def _collect_scores(clip: Clip) -> dict[str, int] | None:
 
 
 def _init_queue(
+    page_path: str,
     clips: list[Clip],
     output_root: Path,
     rater_id: str,
@@ -151,9 +143,14 @@ def _init_queue(
 ) -> None:
     import streamlit as st
 
-    if "queue_ids" in st.session_state:
+    queue_key = _state_key(page_path, "queue_ids")
+    index_key = _state_key(page_path, "queue_index")
+    if queue_key in st.session_state:
         return
-    print(f"Building session queue for rater {rater_id!r} …", flush=True)
+    print(
+        f"Building session queue for rater {rater_id!r} on page {page_path!r} …",
+        flush=True,
+    )
     remaining = unrated_clips(output_root, clips, rater_id)
     remaining_ids = [c.clip_id for c in remaining]
     random.shuffle(remaining_ids)
@@ -171,11 +168,11 @@ def _init_queue(
         order = remaining_ids
         print(
             f"Queue ready: {len(order)} unrated / {len(clips)} total "
-            f"(already-rated clips skipped; pass --include-rated to review them)",
+            f"(already-rated clips skipped)",
             flush=True,
         )
-    st.session_state.queue_ids = order
-    st.session_state.queue_index = 0
+    st.session_state[queue_key] = order
+    st.session_state[index_key] = 0
 
 
 def _load_clips(config_paths: list[str]) -> list[Clip]:
@@ -186,15 +183,17 @@ def _load_clips(config_paths: list[str]) -> list[Clip]:
     return clips
 
 
-def _session_clips(config_paths: list[str]) -> list[Clip]:
+def _session_clips(page_path: str, config_paths: list[str]) -> list[Clip]:
     import streamlit as st
 
     key = tuple(str(Path(p).resolve()) for p in config_paths)
-    cached = st.session_state.get("_clips_key")
-    if cached != key or "_clips" not in st.session_state:
-        st.session_state._clips = _load_clips(list(key))
-        st.session_state._clips_key = key
-    return st.session_state._clips
+    cache_key = _state_key(page_path, "_clips")
+    paths_key = _state_key(page_path, "_clips_key")
+    cached = st.session_state.get(paths_key)
+    if cached != key or cache_key not in st.session_state:
+        st.session_state[cache_key] = _load_clips(list(key))
+        st.session_state[paths_key] = key
+    return st.session_state[cache_key]
 
 
 LAYOUT_CSS = """
@@ -220,6 +219,32 @@ LAYOUT_CSS = """
 </style>
 """
 
+ENTER_SAVE_NEXT_JS = """
+<script>
+(() => {
+  const doc = window.parent.document;
+  if (window.parent.__raterEnterSaveNext) return;
+  window.parent.__raterEnterSaveNext = true;
+  doc.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.repeat || e.isComposing) return;
+    const el = e.target;
+    const tag = (el && el.tagName) || "";
+    if (tag === "TEXTAREA") return;
+    if (tag === "INPUT") {
+      const type = (el && el.type) || "";
+      if (["text", "password", "search", "email", "number", "url"].includes(type)) return;
+    }
+    const buttons = Array.from(doc.querySelectorAll("button"));
+    const btn = buttons.find((b) => b.innerText.trim() === "Save and next");
+    if (btn && !btn.disabled) {
+      e.preventDefault();
+      btn.click();
+    }
+  }, true);
+})();
+</script>
+"""
+
 
 def _inject_layout_css() -> None:
     import streamlit as st
@@ -227,8 +252,20 @@ def _inject_layout_css() -> None:
     st.markdown(LAYOUT_CSS, unsafe_allow_html=True)
 
 
+def _inject_enter_save_next_js() -> None:
+    import streamlit.components.v1 as components
+
+    components.html(ENTER_SAVE_NEXT_JS, height=0)
+
+
+def _supports_kwarg(fn, name: str) -> bool:
+    try:
+        return name in inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 def _show_video(path: Path) -> None:
-    import inspect
     import streamlit as st
 
     kwargs: dict = {}
@@ -259,20 +296,50 @@ def _text_box(label: str, value: str, *, height: int, path: Path | None = None) 
         st.caption("Missing")
 
 
-def _render_rater_gate() -> str:
+def _render_nav_strip(
+    home_page,
+    rating_pages: list[tuple],
+    current_path: str | None,
+) -> None:
     import streamlit as st
 
-    if st.session_state.get("rater_id"):
-        return st.session_state.rater_id
+    cols = st.columns(len(rating_pages) + 1)
+    with cols[0]:
+        st.page_link(home_page, label="Home", disabled=current_path is None)
+    for col, (page_obj, spec) in zip(cols[1:], rating_pages):
+        with col:
+            st.page_link(
+                page_obj,
+                label=spec.title,
+                disabled=spec.path == current_path,
+            )
 
-    st.markdown("### Human video rating")
-    st.caption("Enter a rater ID. It stays locked for this session and names the output folders.")
-    with st.form("rater_id_form"):
+
+def _render_rater_gate(page: RatingPage) -> tuple[str, bool]:
+    import streamlit as st
+
+    rid_key = _state_key(page.path, "rater_id")
+    inc_key = _state_key(page.path, "include_rated")
+    if st.session_state.get(rid_key):
+        return st.session_state[rid_key], bool(st.session_state.get(inc_key, False))
+
+    st.markdown(f"### {page.title}")
+    st.caption(
+        "Enter a rater ID. It stays locked for this set in this session and names "
+        "the output folders."
+    )
+    with st.form(f"rater_id_form::{page.path}"):
         raw = st.text_input("Rater ID", placeholder="e.g. diego")
+        include_rated = st.checkbox(
+            "Show already labeled samples",
+            value=False,
+            help="Also queue clips you have already rated so you can review or edit scores.",
+        )
         submitted = st.form_submit_button("Start rating")
     if submitted:
         try:
-            st.session_state.rater_id = sanitize_rater_id(raw)
+            st.session_state[rid_key] = sanitize_rater_id(raw)
+            st.session_state[inc_key] = bool(include_rated)
             st.rerun()
         except ValueError as exc:
             st.error(str(exc))
@@ -288,7 +355,7 @@ def _render_clip_media(clip: Clip) -> None:
     _text_box(txt_name, clip.source_prompt, height=88, path=clip.source_prompt_path)
 
 
-def _render_score_radios(clip: Clip) -> None:
+def _render_score_radios(page_path: str, clip: Clip) -> None:
     import streamlit as st
 
     st.markdown("**Ratings**")
@@ -298,17 +365,17 @@ def _render_score_radios(clip: Clip) -> None:
             options=SCORE_OPTIONS,
             index=None,
             horizontal=True,
-            key=_score_widget_key(clip.clip_id, key),
+            key=_score_widget_key(page_path, clip.clip_id, key),
             help=RATING_HELP[key],
         )
 
 
 def _save_current(
-    clip: Clip, output_root: Path, rater_id: str, clips: list[Clip]
+    page_path: str, clip: Clip, output_root: Path, rater_id: str, clips: list[Clip]
 ) -> bool:
     import streamlit as st
 
-    scores = _collect_scores(clip)
+    scores = _collect_scores(page_path, clip)
     if scores is None:
         st.warning("Select all three ratings before saving.")
         return False
@@ -317,62 +384,88 @@ def _save_current(
     return True
 
 
-def render_app(args: argparse.Namespace) -> None:
+def render_home(
+    home_page,
+    rating_nav: list[tuple],
+) -> None:
     import streamlit as st
 
-    st.set_page_config(
-        page_title="Human video rating",
-        layout="wide",
-        initial_sidebar_state="collapsed",
-    )
     _inject_layout_css()
+    _render_nav_strip(home_page, rating_nav, current_path=None)
+    st.markdown("### Human video rating")
+    st.caption("Choose a rating set. Each set has its own clips, output folder, and rater ID.")
+    for page_obj, spec in rating_nav:
+        st.page_link(page_obj, label=spec.title)
+        st.caption(f"`/{spec.path}` · {len(spec.configs)} config(s)")
 
-    output_root = Path(args.output_folder)
+
+def render_rating_page(
+    page: RatingPage,
+    home_page,
+    rating_nav: list[tuple],
+) -> None:
+    import streamlit as st
+
+    _inject_layout_css()
+    _render_nav_strip(home_page, rating_nav, current_path=page.path)
+
+    output_root = page.output_folder
+    config_paths = [str(p) for p in page.configs]
     with st.spinner("Indexing videos and queries (see the terminal for progress)…"):
-        clips = _session_clips(args.configs)
+        clips = _session_clips(page.path, config_paths)
     clips_by_id = {c.clip_id: c for c in clips}
 
-    rater_id = _render_rater_gate()
+    rater_id, include_rated = _render_rater_gate(page)
     output_root.mkdir(parents=True, exist_ok=True)
-    if st.session_state.get("_aggregates_checked_for") != rater_id:
+    agg_key = _state_key(page.path, "_aggregates_checked_for")
+    if st.session_state.get(agg_key) != rater_id:
         with st.spinner("Checking resume / aggregates…"):
             refresh_rater_aggregates(output_root, clips, rater_id)
-        st.session_state._aggregates_checked_for = rater_id
-    _init_queue(clips, output_root, rater_id, include_rated=args.include_rated)
+        st.session_state[agg_key] = rater_id
+    _init_queue(
+        page.path, clips, output_root, rater_id, include_rated=include_rated
+    )
 
-    queue_ids: list[str] = st.session_state.queue_ids
+    queue_key = _state_key(page.path, "queue_ids")
+    index_key = _state_key(page.path, "queue_index")
+    queue_ids: list[str] = st.session_state[queue_key]
     n_total = len(clips)
     n_rated = sum(1 for c in clips if is_clip_rated(output_root, c, rater_id))
     n_left = n_total - n_rated
 
     if not queue_ids:
         st.markdown("### All clips rated")
-        st.success(f"All {n_total} clips are rated for `{rater_id}`.")
+        st.success(f"All {n_total} clips are rated for `{rater_id}` on **{page.title}**.")
         st.progress(1.0)
         st.caption(f"0 remaining ({n_rated} / {n_total} rated)")
         st.info(
-            "Restart with `--include-rated` to review or edit saved scores."
+            "Start a new browser session for this set and check "
+            "**Show already labeled samples** to review or edit saved scores."
         )
         return
 
-    index = min(int(st.session_state.queue_index), len(queue_ids) - 1)
-    st.session_state.queue_index = index
+    index = min(int(st.session_state[index_key]), len(queue_ids) - 1)
+    st.session_state[index_key] = index
     clip = clips_by_id[queue_ids[index]]
     clip_already_rated = is_clip_rated(output_root, clip, rater_id)
-    _hydrate_score_widgets(clip, output_root, rater_id)
+    _hydrate_score_widgets(page.path, clip, output_root, rater_id)
 
     status = " · already rated" if clip_already_rated else ""
     st.markdown(
-        f"**Rater:** `{rater_id}` · "
+        f"**Set:** {page.title} · **Rater:** `{rater_id}` · "
         f"Clip {index + 1}/{len(queue_ids)} in queue{status}"
     )
 
-    with st.form("rating_form", clear_on_submit=False):
+    form_kwargs: dict = {"clear_on_submit": False}
+    if _supports_kwarg(st.form, "enter_to_submit"):
+        form_kwargs["enter_to_submit"] = False
+
+    with st.form(f"rating_form::{page.path}", **form_kwargs):
         left, right = st.columns((3, 2))
         with left:
             _render_clip_media(clip)
         with right:
-            _render_score_radios(clip)
+            _render_score_radios(page.path, clip)
 
         b_prev, b_save, b_save_next, b_next = st.columns(4)
         with b_prev:
@@ -381,34 +474,77 @@ def render_app(args: argparse.Namespace) -> None:
             )
         with b_save:
             save_clicked = st.form_submit_button("Save", use_container_width=True)
+        save_next_kwargs: dict = {"type": "primary", "use_container_width": True}
+        has_shortcut = _supports_kwarg(st.form_submit_button, "shortcut")
+        if has_shortcut:
+            save_next_kwargs["shortcut"] = "Enter"
         with b_save_next:
             save_next_clicked = st.form_submit_button(
-                "Save and next", type="primary", use_container_width=True
+                "Save and next", **save_next_kwargs
             )
         with b_next:
             next_clicked = st.form_submit_button(
                 "Next", disabled=index >= len(queue_ids) - 1, use_container_width=True
             )
 
+    if not has_shortcut:
+        _inject_enter_save_next_js()
+
     st.progress(n_rated / n_total if n_total else 1.0)
-    st.caption(f"{n_left} remaining ({n_rated} / {n_total} rated)")
+    st.caption(
+        f"{n_left} remaining ({n_rated} / {n_total} rated) · Enter saves and goes to next"
+    )
     if n_left == 0:
         st.success("All clips are rated. You can still go back and edit saved scores.")
 
     if prev_clicked:
-        st.session_state.queue_index = index - 1
+        st.session_state[index_key] = index - 1
         st.rerun()
     if next_clicked:
-        st.session_state.queue_index = index + 1
+        st.session_state[index_key] = index + 1
         st.rerun()
     if save_clicked:
-        if _save_current(clip, output_root, rater_id, clips):
+        if _save_current(page.path, clip, output_root, rater_id, clips):
             st.rerun()
     if save_next_clicked:
-        if _save_current(clip, output_root, rater_id, clips):
+        if _save_current(page.path, clip, output_root, rater_id, clips):
             if index < len(queue_ids) - 1:
-                st.session_state.queue_index = index + 1
+                st.session_state[index_key] = index + 1
             st.rerun()
+
+
+def render_app(pages: list[RatingPage]) -> None:
+    import streamlit as st
+
+    st.set_page_config(
+        page_title="Human video rating",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+
+    rating_nav: list[tuple] = []
+    nav_items = []
+
+    def _home() -> None:
+        render_home(home_page, rating_nav)
+
+    home_page = st.Page(_home, title="Home", default=True)
+    nav_items.append(home_page)
+
+    for spec in pages:
+        def _make_page(bound: RatingPage = spec):
+            def _page() -> None:
+                render_rating_page(bound, home_page, rating_nav)
+
+            _page.__name__ = f"rating_{bound.path}"
+            return _page
+
+        page_obj = st.Page(_make_page(), title=spec.title, url_path=spec.path)
+        rating_nav.append((page_obj, spec))
+        nav_items.append(page_obj)
+
+    pg = st.navigation(nav_items, position="hidden")
+    pg.run()
 
 
 def main() -> None:
@@ -416,7 +552,8 @@ def main() -> None:
         launch_streamlit()
         return
     args = parse_args(_argv_for_app())
-    render_app(args)
+    pages = load_pages_config(args.pages_config)
+    render_app(pages)
 
 
 if __name__ == "__main__":

@@ -13,10 +13,11 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ${DATA_DIR:-./data}:/data
-    # Bundle layout: /data/configs/*.yaml with paths that resolve under /data
-    entrypoint: ["/bin/sh", "-c"]
-    command: >-
-      python run_human_rating.py
-      --configs /data/configs/*.yaml
-      --output-folder /data/ratings
+      # Host data tree must match gen_config folder_path / output_folder
+      - ${RATER_FILESYSTEM:-/mnt/rater_filesystem}:/mnt/rater_filesystem
+      # Parent mount is writable so Docker can nest gen_configs under it
+      - ./harness_configs:/app/harness_configs
+      - ./gen_configs:/app/harness_configs/gen_configs:ro
+    command:
+      - --pages-config
+      - /app/harness_configs/base_config.yaml

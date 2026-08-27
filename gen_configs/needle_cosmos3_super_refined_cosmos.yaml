@@ -1,0 +1,12 @@
+model: "cosmos3-super"
+folder_path: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_needle_passing/needle_passing_prompts_refined_cosmos"
+output_folder: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_needle_passing/gen_videos_cosmos3_super_refined_cosmos"
+device: "cuda:1"
+seed: 42
+timesteps: 35
+# crop_then_gen | pad_then_gen | resize — see harness/resolution_strategy.py
+resolution_strategy: "crop_then_gen"
+resolution: [480, 832]
+skip_existing: true
+num_frames: 97
+framerate: 16

@@ -1,0 +1,45 @@
+# Password-protected image: nginx HTTP Basic Auth in front of Streamlit.
+# Password is injected at runtime (RATER_PASSWORD), never baked into the image.
+#
+#   docker build -f Dockerfile.auth -t surgworldbench-rater-ui-auth .
+#   docker run --rm -p 8501:80 \
+#     -e RATER_PASSWORD=secret \
+#     -v /path/to/bundle:/data \
+#     surgworldbench-rater-ui-auth \
+#     --pages-config /data/rater_pages.yaml
+
+FROM python:3.11-slim
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    STREAMLIT_SERVER_ADDRESS=127.0.0.1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx apache2-utils \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY run_human_rating.py run_aggregate_human_ratings.py ./
+COPY harness/ harness/
+COPY .streamlit/ .streamlit/
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/entrypoint-auth.sh /app/docker/entrypoint-auth.sh
+RUN chmod +x /app/docker/entrypoint-auth.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/app/docker/entrypoint-auth.sh"]
+CMD ["--pages-config", "/data/rater_pages.yaml"]

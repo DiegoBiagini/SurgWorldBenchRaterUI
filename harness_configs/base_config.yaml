@@ -1,0 +1,29 @@
+# Each entry is a separate labeling page at http://localhost:8501/<path>
+pages:
+  - path: control
+    title: Control
+    configs:
+      - gen_configs/control_cosmos_h_og_base.yaml
+      - gen_configs/control_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/control_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/control_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/control_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_control/human_rating
+  - path: manipulation
+    title: Manipulation
+    configs:
+      - gen_configs/manipulation_cosmos_h_og_base.yaml
+      - gen_configs/manipulation_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/manipulation_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/manipulation_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/manipulation_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_manipulation/human_rating
+  - path: needle_passing
+    title: Needle Passing
+    configs:
+      - gen_configs/needle_cosmos_h_og_base.yaml
+      - gen_configs/needle_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/needle_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/needle_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/needle_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_needle_passing/human_rating
