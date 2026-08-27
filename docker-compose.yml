@@ -17,7 +17,7 @@ services:
         no_proxy: ${no_proxy:-}
     image: surgworldbench-rater-ui
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:80"
     volumes:
       # Host data tree must match gen_config folder_path / output_folder
       - ${RATER_FILESYSTEM:-/mnt/rater_filesystem}:/mnt/rater_filesystem

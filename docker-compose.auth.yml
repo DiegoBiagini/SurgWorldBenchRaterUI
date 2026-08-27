@@ -22,7 +22,7 @@ services:
         no_proxy: ${no_proxy:-}
     image: surgworldbench-rater-ui-auth
     ports:
-      - "8501:80"
+      - "127.0.0.1:8501:80"
     env_file:
       - .env
     environment:
