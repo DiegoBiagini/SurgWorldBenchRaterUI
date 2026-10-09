@@ -1,6 +1,10 @@
+# Benchmark generation — control / cosmos3-super / refined_prompt_cosmos (CosmoS3 LLM upsample output)
+# Activate cosmos3 venv: source cosmos3/bin/activate. Super uses group CPU offload (~96GB GPU).
+# Runner: python run_control_prompts_generation.py --config configs/benchmark/control_cosmos3_super_refined_cosmos.yaml
+
 model: "cosmos3-super"
-folder_path: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_control/control_prompts_refined_cosmos"
-output_folder: "/mnt/rater_filesystem/benchmark_outputs/benchmark_data_control/gen_videos_cosmos3_super_refined_cosmos"
+folder_path: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_control/control_prompts_refined_cosmos/"
+output_folder: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_control/gen_videos_cosmos3_super_refined_cosmos/"
 device: "cuda:1"
 seed: 42
 timesteps: 35
@@ -10,3 +14,4 @@ resolution: [480, 832]
 skip_existing: true
 num_frames: 97
 framerate: 16
+hf_home: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/hf_cache/"

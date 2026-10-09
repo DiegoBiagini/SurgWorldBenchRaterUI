@@ -27,3 +27,48 @@ pages:
       - gen_configs/needle_cosmos3_super_refined_cosmos.yaml
       - gen_configs/needle_minimax_h3_refined_mm.yaml
     output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_needle_passing/human_rating
+  - path: clipping
+    title: Clipping
+    configs:
+      - gen_configs/clipping_cosmos_h_og_base.yaml
+      - gen_configs/clipping_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/clipping_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/clipping_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/clipping_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_clipping/human_rating
+  - path: camera
+    title: Camera
+    configs:
+      - gen_configs/camera_cosmos_h_og_base.yaml
+      - gen_configs/camera_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/camera_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/camera_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/camera_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_camera/human_rating
+  - path: needle_insertion
+    title: Needle Insertion
+    configs:
+      - gen_configs/needle_insertion_cosmos_h_og_base.yaml
+      - gen_configs/needle_insertion_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/needle_insertion_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/needle_insertion_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/needle_insertion_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_needle_insertion/human_rating
+  - path: cutting
+    title: Cut
+    configs:
+      - gen_configs/cutting_cosmos_h_og_base.yaml
+      - gen_configs/cutting_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/cutting_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/cutting_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/cutting_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_cutting/human_rating
+  - path: aspiration
+    title: Aspiration
+    configs:
+      - gen_configs/aspiration_cosmos_h_og_base.yaml
+      - gen_configs/aspiration_cosmos3_h_surgical_refined_cosmos.yaml
+      - gen_configs/aspiration_cosmos3_nano_refined_cosmos.yaml
+      - gen_configs/aspiration_cosmos3_super_refined_cosmos.yaml
+      - gen_configs/aspiration_minimax_h3_refined_mm.yaml
+    output_folder: /mnt/rater_filesystem/benchmark_outputs/benchmark_data_aspiration/human_rating

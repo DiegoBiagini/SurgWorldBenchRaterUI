@@ -1,0 +1,17 @@
+# Benchmark generation — aspiration / minimax-h3 / refined_prompt_mm (MiniMax-style refine; run refine_prompt/*_minimax_h3 when available)
+# Activate minimax-h3 venv: source minimax-h3/bin/activate
+# Runner: python run_control_prompts_generation.py --config configs/benchmark/aspiration_minimax_h3_refined_mm.yaml
+
+model: "minimax-h3"
+folder_path: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_aspiration/aspiration_prompts_refined_mm/"
+output_folder: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_aspiration/gen_videos_minimax_h3_refined_mm/"
+device: "cuda:1"
+seed: 42
+timesteps: 35
+# crop_then_gen | pad_then_gen | resize — see harness/resolution_strategy.py
+resolution_strategy: "crop_then_gen"
+resolution: [480, 832]
+skip_existing: true
+num_frames: 141
+framerate: 24
+hf_home: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/hf_cache/"

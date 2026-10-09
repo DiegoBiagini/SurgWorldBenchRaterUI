@@ -1,0 +1,17 @@
+# Benchmark generation — clipping / cosmos-h-2b-og / base_prompt (original short prompts)
+# Activate cosmos-h-og venv: source cosmos-h-og/bin/activate (or setup_cosmos_h_og.sh)
+# Runner: python run_control_prompts_generation.py --config configs/benchmark/clipping_cosmos_h_og_base.yaml
+
+model: "cosmos-h-2b-og"
+folder_path: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_clipping/clipping_prompts/"
+output_folder: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs/benchmark_data_clipping/gen_videos_cosmos_h_og_base/"
+device: "cuda:1"
+seed: 42
+timesteps: 50
+# crop_then_gen | pad_then_gen | resize — see harness/resolution_strategy.py
+resolution_strategy: "crop_then_gen"
+resolution: [480, 848]
+skip_existing: true
+num_frames: 97
+framerate: 16
+hf_home: "/mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/hf_cache/"
