@@ -6,7 +6,7 @@ import glob
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import yaml
 
@@ -20,6 +20,79 @@ class RatingPage:
     title: str
     configs: tuple[Path, ...]
     output_folder: Path
+    path_rewrites: tuple[tuple[str, str], ...] = ()
+
+
+def normalize_path_prefix(raw: str) -> str:
+    value = raw.strip()
+    if not value:
+        raise ValueError("path rewrite prefix must be a non-empty string")
+    if value != "/":
+        value = value.rstrip("/")
+    return value
+
+
+def parse_path_rewrites(raw: Any) -> tuple[tuple[str, str], ...]:
+    """Parse ``path_rewrites: [{from, to}, ...]`` from the pages YAML."""
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise ValueError("path_rewrites must be a list of {from, to} mappings")
+    pairs: list[tuple[str, str]] = []
+    for i, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise ValueError(f"path_rewrites[{i}] must be a mapping with from/to")
+        src_raw = item.get("from")
+        dst_raw = item.get("to")
+        if not isinstance(src_raw, str) or not src_raw.strip():
+            raise ValueError(f"path_rewrites[{i}].from must be a non-empty string")
+        if not isinstance(dst_raw, str) or not dst_raw.strip():
+            raise ValueError(f"path_rewrites[{i}].to must be a non-empty string")
+        extra = set(item) - {"from", "to"}
+        if extra:
+            raise ValueError(
+                f"path_rewrites[{i}] has unknown keys: {', '.join(sorted(extra))}"
+            )
+        pairs.append((normalize_path_prefix(src_raw), normalize_path_prefix(dst_raw)))
+    return _dedupe_rewrites(pairs)
+
+
+def parse_cli_path_rewrites(items: Sequence[str] | None) -> tuple[tuple[str, str], ...]:
+    if not items:
+        return ()
+    pairs: list[tuple[str, str]] = []
+    for item in items:
+        if "=" not in item:
+            raise ValueError(
+                f"Invalid --path-rewrite {item!r}: expected FROM=TO"
+            )
+        src_raw, dst_raw = item.split("=", 1)
+        if not src_raw.strip() or not dst_raw.strip():
+            raise ValueError(
+                f"Invalid --path-rewrite {item!r}: FROM and TO must be non-empty"
+            )
+        pairs.append(
+            (normalize_path_prefix(src_raw), normalize_path_prefix(dst_raw))
+        )
+    return _dedupe_rewrites(pairs)
+
+
+def merge_path_rewrites(
+    *groups: Sequence[tuple[str, str]],
+) -> tuple[tuple[str, str], ...]:
+    """Later groups override the same ``from`` prefix. Longest prefix is applied first."""
+    merged: list[tuple[str, str]] = []
+    for group in groups:
+        merged.extend(group)
+    return _dedupe_rewrites(merged)
+
+
+def _dedupe_rewrites(pairs: Sequence[tuple[str, str]]) -> tuple[tuple[str, str], ...]:
+    by_src: dict[str, str] = {}
+    for src, dst in pairs:
+        by_src[src] = dst
+    ordered = sorted(by_src.items(), key=lambda item: len(item[0]), reverse=True)
+    return tuple(ordered)
 
 
 def _as_str(value: Any, *, field: str, page_index: int) -> str:
@@ -50,7 +123,12 @@ def _expand_config_pattern(
 
 
 def _parse_page(
-    raw: Any, *, page_index: int, pages_dir: Path, pages_config_path: Path
+    raw: Any,
+    *,
+    page_index: int,
+    pages_dir: Path,
+    pages_config_path: Path,
+    path_rewrites: tuple[tuple[str, str], ...],
 ) -> RatingPage:
     if not isinstance(raw, dict):
         raise ValueError(f"pages[{page_index}] must be a mapping")
@@ -103,6 +181,7 @@ def _parse_page(
         title=title,
         configs=tuple(configs),
         output_folder=output_folder,
+        path_rewrites=path_rewrites,
     )
 
 
@@ -115,6 +194,11 @@ def load_pages_config(path: str | Path) -> list[RatingPage]:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"{config_path}: root must be a mapping")
+
+    try:
+        path_rewrites = parse_path_rewrites(data.get("path_rewrites"))
+    except ValueError as exc:
+        raise ValueError(f"{config_path}: {exc}") from exc
 
     pages_raw = data.get("pages")
     if not isinstance(pages_raw, list) or not pages_raw:
@@ -129,6 +213,7 @@ def load_pages_config(path: str | Path) -> list[RatingPage]:
             page_index=i,
             pages_dir=pages_dir,
             pages_config_path=config_path,
+            path_rewrites=path_rewrites,
         )
         previous = seen_paths.get(page.path)
         if previous is not None:

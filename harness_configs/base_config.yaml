@@ -1,4 +1,8 @@
 # Each entry is a separate labeling page at http://localhost:8501/<path>
+# Prefix rewrite for gen-config folder_path / output_folder (not rating output_folder).
+path_rewrites:
+  - from: /mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs
+    to: /mnt/rater_filesystem/benchmark_outputs
 pages:
   - path: control
     title: Control

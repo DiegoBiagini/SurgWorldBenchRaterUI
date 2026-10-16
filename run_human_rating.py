@@ -14,6 +14,7 @@ import inspect
 import os
 import random
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from harness.human_rating import (
@@ -30,7 +31,12 @@ from harness.human_rating import (
     sanitize_rater_id,
     unrated_clips,
 )
-from harness.pages_config import RatingPage, load_pages_config
+from harness.pages_config import (
+    RatingPage,
+    load_pages_config,
+    merge_path_rewrites,
+    parse_cli_path_rewrites,
+)
 
 # Placeholder copy — replace with the rating procedure for each criterion.
 RATING_HELP = {
@@ -56,6 +62,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--pages-config",
         required=True,
         help="YAML listing rating-set pages (path, configs, output_folder)",
+    )
+    parser.add_argument(
+        "--path-rewrite",
+        action="append",
+        default=[],
+        metavar="FROM=TO",
+        help=(
+            "Rewrite a filesystem prefix on gen-config folder_path/output_folder "
+            "(repeatable). Applied after path_rewrites in the pages YAML."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -175,23 +191,33 @@ def _init_queue(
     st.session_state[index_key] = 0
 
 
-def _load_clips(config_paths: list[str]) -> list[Clip]:
+def _load_clips(
+    config_paths: list[str],
+    path_rewrites: tuple[tuple[str, str], ...] = (),
+) -> list[Clip]:
     print("Discovering clips…", flush=True)
-    sources = load_generation_sources(config_paths)
+    sources = load_generation_sources(config_paths, path_rewrites)
     clips = discover_clips(sources)
     print("Clip discovery done.", flush=True)
     return clips
 
 
-def _session_clips(page_path: str, config_paths: list[str]) -> list[Clip]:
+def _session_clips(
+    page_path: str,
+    config_paths: list[str],
+    path_rewrites: tuple[tuple[str, str], ...] = (),
+) -> list[Clip]:
     import streamlit as st
 
-    key = tuple(str(Path(p).resolve()) for p in config_paths)
+    key = (
+        tuple(str(Path(p).resolve()) for p in config_paths),
+        tuple(path_rewrites),
+    )
     cache_key = _state_key(page_path, "_clips")
     paths_key = _state_key(page_path, "_clips_key")
     cached = st.session_state.get(paths_key)
     if cached != key or cache_key not in st.session_state:
-        st.session_state[cache_key] = _load_clips(list(key))
+        st.session_state[cache_key] = _load_clips(list(key[0]), path_rewrites)
         st.session_state[paths_key] = key
     return st.session_state[cache_key]
 
@@ -412,7 +438,7 @@ def render_rating_page(
     output_root = page.output_folder
     config_paths = [str(p) for p in page.configs]
     with st.spinner("Indexing videos and queries (see the terminal for progress)…"):
-        clips = _session_clips(page.path, config_paths)
+        clips = _session_clips(page.path, config_paths, page.path_rewrites)
     clips_by_id = {c.clip_id: c for c in clips}
 
     rater_id, include_rated = _render_rater_gate(page)
@@ -553,6 +579,11 @@ def main() -> None:
         return
     args = parse_args(_argv_for_app())
     pages = load_pages_config(args.pages_config)
+    cli_rewrites = parse_cli_path_rewrites(args.path_rewrite)
+    if cli_rewrites:
+        yaml_rewrites = pages[0].path_rewrites if pages else ()
+        merged = merge_path_rewrites(yaml_rewrites, cli_rewrites)
+        pages = [replace(page, path_rewrites=merged) for page in pages]
     render_app(pages)
 
 

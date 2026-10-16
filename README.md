@@ -24,14 +24,17 @@ pip install -r requirements.txt
 ## Run
 
 [`harness_configs/base_config.yaml`](harness_configs/base_config.yaml) lists
-each rating set: URL path, generation configs, and output folder. The shipped
-`gen_configs/*.yaml` files use absolute paths under `/mnt/rater_filesystem`
-(prompts, videos, ratings).
+each rating set: URL path, generation configs, and rating output folder. Gen
+YAMLs keep the original generation-host paths; the pages file remaps them with
+`path_rewrites` (prefix `from` → `to`) onto this machine's rater filesystem.
+That rewrite applies to gen-config `folder_path` and `output_folder` (prompts
+and videos), not to the page `output_folder` used for ratings.
 
 To write your own pages YAML, see
 [`harness_configs/rater_pages.example.yaml`](harness_configs/rater_pages.example.yaml).
 Relative `configs` paths resolve against the pages file directory. `configs`
-entries may include globs. Absolute `output_folder` values are used as-is.
+entries may include globs. Absolute page `output_folder` values are used as-is.
+Override or add rewrites at launch with repeatable `--path-rewrite FROM=TO`.
 
 ```bash
 python run_human_rating.py --pages-config harness_configs/base_config.yaml
@@ -57,11 +60,13 @@ python run_aggregate_human_ratings.py --pages-config harness_configs/base_config
 
 ## Rater filesystem
 
-Generation YAMLs point at `/mnt/rater_filesystem/...`. That tree is **not** in
-this repo. On the host it is usually already at `/mnt/rater_filesystem`. If it
-lives somewhere else, bind-mount that directory to `/mnt/rater_filesystem` in
-Docker (see below). Inside the container the path must still be
-`/mnt/rater_filesystem` so the YAMLs keep working.
+Generation YAMLs still name the generation-host tree (under
+`/mnt/b/Storage_10/.../benchmark_outputs`). The pages YAML rewrites that prefix
+to `/mnt/rater_filesystem/benchmark_outputs`. That rater tree is **not** in this
+repo. On the host it is usually already at `/mnt/rater_filesystem`. If it lives
+somewhere else, bind-mount that directory to `/mnt/rater_filesystem` in Docker
+(see below) and keep `path_rewrites.to` aligned with the path inside the
+container.
 
 [`harness_configs/base_config.yaml`](harness_configs/base_config.yaml) and
 [`gen_configs/`](gen_configs/) expect this layout (one subdirectory per

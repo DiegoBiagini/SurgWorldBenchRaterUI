@@ -1,6 +1,10 @@
 # Each entry is a separate labeling page at http://localhost:8501/<path>
 # Relative configs paths are resolved against this file's directory.
-# Generation YAMLs use absolute paths under /mnt/rater_filesystem.
+# Rewrite gen-config folder_path / output_folder prefixes for this host.
+# Page output_folder (ratings) is not rewritten.
+path_rewrites:
+  - from: /mnt/b/Storage_10/dev_diego/WM/SurgWorldBench/benchmark_data/benchmark_outputs
+    to: /mnt/rater_filesystem/benchmark_outputs
 pages:
   - path: control
     title: Control

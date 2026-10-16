@@ -7,7 +7,7 @@ import statistics
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from harness.config_cli import load_yaml_config
 
@@ -59,15 +59,37 @@ def sanitize_rater_id(raw: str) -> str:
     return value
 
 
-def resolve_config_data_path(raw: str | Path, config_path: Path) -> Path:
+def rewrite_data_path(
+    raw: str | Path, rewrites: Sequence[tuple[str, str]] | None = None
+) -> Path:
+    """Apply longest-matching prefix rewrite (``from`` → ``to``)."""
+    text = str(raw)
+    if not rewrites:
+        return Path(text)
+    for src, dst in rewrites:
+        if text == src or text.startswith(src + "/"):
+            return Path(dst + text[len(src) :])
+    return Path(text)
+
+
+def resolve_config_data_path(
+    raw: str | Path,
+    config_path: Path,
+    path_rewrites: Sequence[tuple[str, str]] | None = None,
+) -> Path:
     """Resolve ``folder_path`` / ``output_folder`` against the YAML directory when relative."""
-    path = Path(raw)
-    if path.is_absolute():
-        return path
-    return (config_path.parent / path).resolve()
+    rewritten = rewrite_data_path(raw, path_rewrites)
+    if rewritten != Path(str(raw)):
+        _log(f"    path rewrite: {raw} -> {rewritten}")
+    if rewritten.is_absolute():
+        return rewritten
+    return (config_path.parent / rewritten).resolve()
 
 
-def load_generation_sources(config_paths: list[str | Path]) -> list[GenerationSource]:
+def load_generation_sources(
+    config_paths: list[str | Path],
+    path_rewrites: Sequence[tuple[str, str]] | None = None,
+) -> list[GenerationSource]:
     sources: list[GenerationSource] = []
     seen_folders: dict[str, Path] = {}
     _log(f"Loading {len(config_paths)} generation config(s)…")
@@ -78,7 +100,9 @@ def load_generation_sources(config_paths: list[str | Path]) -> list[GenerationSo
         output_folder = cfg.get("output_folder")
         if not output_folder:
             raise ValueError(f"{config_path} is missing output_folder")
-        output_path = resolve_config_data_path(output_folder, config_path)
+        output_path = resolve_config_data_path(
+            output_folder, config_path, path_rewrites
+        )
         folder_name = output_path.name
         if not folder_name:
             raise ValueError(f"{config_path}: output_folder has no directory name")
@@ -94,7 +118,7 @@ def load_generation_sources(config_paths: list[str | Path]) -> list[GenerationSo
         seen_folders[folder_name] = output_path
         folder_path_raw = cfg.get("folder_path")
         folder_path = (
-            resolve_config_data_path(folder_path_raw, config_path)
+            resolve_config_data_path(folder_path_raw, config_path, path_rewrites)
             if folder_path_raw
             else None
         )

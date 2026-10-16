@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
 from harness.human_rating import (
@@ -20,7 +21,11 @@ from harness.human_rating import (
     rewrite_rater_aggregate,
     write_across_raters_aggregate,
 )
-from harness.pages_config import load_pages_config
+from harness.pages_config import (
+    load_pages_config,
+    merge_path_rewrites,
+    parse_cli_path_rewrites,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,18 +37,34 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Rater pages YAML (aggregates each page's output_folder)",
     )
+    parser.add_argument(
+        "--path-rewrite",
+        action="append",
+        default=[],
+        metavar="FROM=TO",
+        help=(
+            "Rewrite a filesystem prefix on gen-config folder_path/output_folder "
+            "(repeatable). Applied after path_rewrites in the pages YAML."
+        ),
+    )
     return parser.parse_args()
 
 
 def _aggregate_root(
-    output_root: Path, *, configs: list[str], label: str
+    output_root: Path,
+    *,
+    configs: list[str],
+    label: str,
+    path_rewrites: tuple[tuple[str, str], ...] = (),
 ) -> None:
     prefix = f"{label}: "
     if not output_root.is_dir():
         print(f"{prefix}output folder not found: {output_root}")
         return
 
-    folder_names = [s.folder_name for s in load_generation_sources(configs)]
+    folder_names = [
+        s.folder_name for s in load_generation_sources(configs, path_rewrites)
+    ]
     if not folder_names:
         print(f"{prefix}no generation configs to aggregate")
         return
@@ -66,11 +87,17 @@ def _aggregate_root(
 def main() -> None:
     args = parse_args()
     pages = load_pages_config(args.pages_config)
+    cli_rewrites = parse_cli_path_rewrites(args.path_rewrite)
+    if cli_rewrites:
+        yaml_rewrites = pages[0].path_rewrites if pages else ()
+        merged = merge_path_rewrites(yaml_rewrites, cli_rewrites)
+        pages = [replace(page, path_rewrites=merged) for page in pages]
     for page in pages:
         _aggregate_root(
             page.output_folder,
             configs=[str(p) for p in page.configs],
             label=page.path,
+            path_rewrites=page.path_rewrites,
         )
 
 
